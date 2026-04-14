@@ -5,6 +5,7 @@ describe('versions', () => {
     describe('VERSIONS', () => {
         it('exports the supported versions', () => {
             assert.deepEqual(Array.from(versions.VERSIONS.keys()), [
+                '2025',
                 '2022',
                 '2019',
                 '2017',

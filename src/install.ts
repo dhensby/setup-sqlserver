@@ -3,10 +3,11 @@ import { readFile } from 'node:fs/promises';
 import * as core from '@actions/core';
 import * as exec from '@actions/exec';
 import * as tc from '@actions/tool-cache';
-import { VersionConfig, VERSIONS } from './versions';
+import { type VersionConfig, VERSIONS } from './versions';
 import {
     downloadBoxInstaller,
     downloadExeInstaller,
+    downloadSseiInstaller,
     downloadUpdateInstaller,
     gatherInputs,
     gatherSummaryFiles,
@@ -27,6 +28,8 @@ function findOrDownloadTool(config: VersionConfig): Promise<string> {
     if (toolPath) {
         core.info(`Found in cache @ ${toolPath}`);
         return Promise.resolve(joinPaths(toolPath, 'setup.exe'));
+    } else if (config.sseiUrl) {
+        return downloadSseiInstaller(config);
     } else if (config.boxUrl) {
         return downloadBoxInstaller(config);
     }

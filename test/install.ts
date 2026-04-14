@@ -25,9 +25,9 @@ describe('install', () => {
         stubNc = stub(nativeClient);
         stubOdbc = stub(odbcDriver);
         versionStub = stub(versions.VERSIONS);
-        versionStub.keys.returns(['box', 'exe', 'maxOs', 'minOs', 'minMaxOs'][Symbol.iterator]());
+        versionStub.keys.returns(['box', 'exe', 'ssei', 'maxOs', 'minOs', 'minMaxOs'][Symbol.iterator]());
         versionStub.has.callsFake((name) => {
-            return ['box', 'exe', 'maxOs', 'minOs', 'minMaxOs'].includes(name);
+            return ['box', 'exe', 'ssei', 'maxOs', 'minOs', 'minMaxOs'].includes(name);
         });
         versionStub.get.withArgs('box').returns({
             version: '2022',
@@ -39,6 +39,11 @@ describe('install', () => {
             version: '2019',
             exeUrl: 'https://example.com/setup.exe',
             updateUrl: 'https://example.com/update.exe',
+        });
+        versionStub.get.withArgs('ssei').returns({
+            version: '2025',
+            sseiUrl: 'https://example.com/ssei.exe',
+            updateUrl: 'https://example.com/update.html',
         });
         versionStub.get.withArgs('maxOs').returns({
             version: '2017',
@@ -78,6 +83,7 @@ describe('install', () => {
         utilsStub.gatherSummaryFiles.resolves([]);
         utilsStub.downloadExeInstaller.resolves('C:/tmp/exe/setup.exe');
         utilsStub.downloadBoxInstaller.resolves('C:/tmp/box/setup.exe');
+        utilsStub.downloadSseiInstaller.resolves('C:/tmp/ssei/setup.exe');
         utilsStub.downloadUpdateInstaller.resolves('C:/tmp/exe/sqlupdate.exe');
         utilsStub.waitForDatabase.resolves(0);
         coreStub = stub(core);
@@ -124,7 +130,7 @@ describe('install', () => {
         try {
             await install();
         } catch (e) {
-            expect(e).to.have.property('message', 'Unsupported SQL Version, supported versions are box, exe, maxOs, minOs, minMaxOs, got: missing');
+            expect(e).to.have.property('message', 'Unsupported SQL Version, supported versions are box, exe, ssei, maxOs, minOs, minMaxOs, got: missing');
             return;
         }
         expect.fail('expected to throw');
@@ -147,6 +153,21 @@ describe('install', () => {
         });
         await install();
         expect(execStub.exec).to.have.been.calledWith('"C:/tmp/exe/setup.exe"', match.array, { windowsVerbatimArguments: true });
+    });
+    it('runs an ssei install', async () => {
+        utilsStub.gatherInputs.returns({
+            version: 'ssei',
+            password: 'secret password',
+            collation: 'SQL_Latin1_General_CP1_CI_AS',
+            installArgs: [],
+            wait: true,
+            skipOsCheck: false,
+            nativeClientVersion: '',
+            odbcVersion: '',
+            installUpdates: false,
+        });
+        await install();
+        expect(execStub.exec).to.have.been.calledWith('"C:/tmp/ssei/setup.exe"', match.array, { windowsVerbatimArguments: true });
     });
     it('downloads cumulative updates', async () => {
         utilsStub.gatherInputs.returns({

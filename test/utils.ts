@@ -1,4 +1,5 @@
 import { randomBytes, randomUUID } from 'node:crypto';
+import fs from 'node:fs/promises';
 import { IncomingMessage } from 'node:http';
 import * as exec from '@actions/exec';
 import * as core from '@actions/core';
@@ -141,7 +142,7 @@ describe('utils', () => {
             coreStub.getBooleanInput.withArgs('install-updates').returns(false);
             const res = utils.gatherInputs();
             expect(res).to.deep.equal({
-                version: '2022',
+                version: '2025',
                 password: 'secret password',
                 collation: 'SQL_Latin1_General_CP1_CI_AS',
                 installArgs: [],
@@ -164,7 +165,7 @@ describe('utils', () => {
             coreStub.getBooleanInput.withArgs('install-updates').returns(false);
             const res = utils.gatherInputs();
             expect(res).to.deep.equal({
-                version: '2022',
+                version: '2025',
                 password: 'secret password',
                 collation: 'SQL_Latin1_General_CP1_CI_AS',
                 installArgs: [],
@@ -287,6 +288,60 @@ describe('utils', () => {
             });
             expect(calls).to.have.lengthOf(1);
             expect(calls[0].firstArg).to.match(/^Got setup file \(exe\) with hash SHA256=/);
+            expect(res).to.match(/^C:\/tools\/[a-f0-9-]*\/setup\.exe$/);
+        });
+    });
+    describe('.downloadSseiInstaller()', () => {
+        beforeEach('stub deps', () => {
+            stub(tc, 'downloadTool').callsFake(() => Promise.resolve(`C:/tmp/${randomUUID()}.exe`));
+            stub(exec, 'exec').resolves(0);
+            stub(io, 'mv').resolves();
+            stub(tc, 'cacheDir').callsFake(() => Promise.resolve(`C:/tools/${randomUUID()}`));
+            stub(crypto, 'generateFileHash').callsFake(() => Promise.resolve(randomBytes(32)));
+            stub(fs, 'readdir').resolves(['ssei-bootstrapper.exe', 'SQLServer2025-x64-ENU.exe'] as unknown as []);
+        });
+        it('returns a path to an exe', async () => {
+            const res = await utils.downloadSseiInstaller({
+                sseiUrl: 'https://example.com/ssei.exe',
+                version: '2025',
+            });
+            expect(res).to.match(/^C:\/tools\/[a-f0-9-]*\/setup\.exe$/);
+        });
+        it('throws if no sseiUrl', async () => {
+            try {
+                await utils.downloadSseiInstaller({
+                    version: '2025',
+                });
+            } catch (e) {
+                expect(e).to.have.property('message', 'No sseiUrl provided');
+                return;
+            }
+            expect.fail('expected to fail');
+        });
+        it('throws if no exe found after download', async () => {
+            (fs.readdir as SinonStub).resolves(['readme.txt', 'data.cab'] as unknown as []);
+            try {
+                await utils.downloadSseiInstaller({
+                    sseiUrl: 'https://example.com/ssei.exe',
+                    version: '2025',
+                });
+            } catch (e) {
+                expect(e).to.have.property('message', 'SSEI bootstrapper did not produce an installer exe');
+                return;
+            }
+            expect.fail('expected to fail');
+        });
+        it('calculates digests in debug mode', async () => {
+            coreStub.isDebug.returns(true);
+            const res = await utils.downloadSseiInstaller({
+                sseiUrl: 'https://example.com/ssei.exe',
+                version: '2025',
+            });
+            const calls = coreStub.debug.getCalls().filter(({ firstArg }) => {
+                return firstArg.startsWith('Got SSEI bootstrapper');
+            });
+            expect(calls).to.have.lengthOf(1);
+            expect(calls[0].firstArg).to.match(/^Got SSEI bootstrapper with hash SHA256=/);
             expect(res).to.match(/^C:\/tools\/[a-f0-9-]*\/setup\.exe$/);
         });
     });
