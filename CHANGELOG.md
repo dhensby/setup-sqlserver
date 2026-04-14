@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.1.0](https://github.com/tediousjs/setup-sqlserver/compare/v3.0.0...v3.1.0) (2026-04-14)
+
+### Features
+
+* add SQL Server 2025 support ([d857b36](https://github.com/tediousjs/setup-sqlserver/commit/d857b36b09bade18300c7b53d8ede42cdcb7dad2))
+
 ## [3.0.0](https://github.com/tediousjs/setup-sqlserver/compare/v2.2.0...v3.0.0) (2025-09-30)
 
 ### ⚠ BREAKING CHANGES
