@@ -1,12 +1,13 @@
-import * as exec from '@actions/exec';
-import * as core from '@actions/core';
-import * as tc from '@actions/tool-cache';
-import * as io from '@actions/io';
-import * as http from '@actions/http-client';
 import { basename, extname, dirname, join as joinPaths } from 'node:path';
-import { VersionConfig } from './versions';
-import { generateFileHash } from './crypto';
+import { readdir } from 'node:fs/promises';
+import * as core from '@actions/core';
+import * as exec from '@actions/exec';
 import * as glob from '@actions/glob';
+import * as http from '@actions/http-client';
+import * as io from '@actions/io';
+import * as tc from '@actions/tool-cache';
+import { generateFileHash } from './crypto';
+import type { VersionConfig } from './versions';
 
 /**
  * Helper function to determine the runner being used. Uses `systeminfo` to gather version.
@@ -56,7 +57,7 @@ export interface Inputs {
 export function gatherInputs(): Inputs {
     const version = core.getInput('sqlserver-version').replace(/sql-/i, '') || 'latest';
     return {
-        version: version.toLowerCase() === 'latest' ? '2022' : version,
+        version: version.toLowerCase() === 'latest' ? '2025' : version,
         password: core.getInput('sa-password'),
         collation: core.getInput('db-collation'),
         installArgs: core.getMultilineInput('install-arguments'),
@@ -119,6 +120,9 @@ export async function downloadBoxInstaller(config: VersionConfig): Promise<strin
     if (!config.boxUrl) {
         throw new Error('No boxUrl provided');
     }
+    if (!config.exeUrl) {
+        throw new Error('No exeUrl provided');
+    }
     const [exePath, boxPath] = await Promise.all([
         downloadTool(config.exeUrl),
         downloadTool(config.boxUrl),
@@ -147,6 +151,57 @@ export async function downloadBoxInstaller(config: VersionConfig): Promise<strin
 }
 
 /**
+ * Downloads install media using the SSEI bootstrapper. The bootstrapper is
+ * downloaded and then executed with /Action=Download to fetch the CAB media,
+ * which is then extracted in the same way as the box installer.
+ *
+ * @param {VersionConfig} config
+ * @returns {Promise<string>} The path to the installer executable
+ */
+export async function downloadSseiInstaller(config: VersionConfig): Promise<string> {
+    if (!config.sseiUrl) {
+        throw new Error('No sseiUrl provided');
+    }
+    // download the SSEI bootstrapper
+    const sseiPath = await downloadTool(config.sseiUrl);
+    if (core.isDebug()) {
+        const hash = await generateFileHash(sseiPath);
+        core.debug(`Got SSEI bootstrapper with hash SHA256=${hash.toString('base64')}`);
+    }
+    // use the bootstrapper to download the actual media
+    const mediaDir = dirname(sseiPath);
+    core.info('Downloading install media via SSEI bootstrapper');
+    await exec.exec(`"${sseiPath}"`, [
+        '/Action=Download',
+        `/MediaPath=${mediaDir}`,
+        '/MediaType=CAB',
+        '/Quiet',
+        '/Language=en-US',
+    ], {
+        windowsVerbatimArguments: true,
+    });
+    // find the downloaded exe in the media directory
+    const files = await readdir(mediaDir);
+    const exeFile = files.find((f) => f.endsWith('.exe') && f !== basename(sseiPath));
+    if (!exeFile) {
+        throw new Error('SSEI bootstrapper did not produce an installer exe');
+    }
+    const exePath = joinPaths(mediaDir, exeFile);
+    core.info('Extracting installer');
+    await exec.exec(`"${exePath}"`, [
+        '/qs',
+        '/x:setup',
+    ], {
+        cwd: mediaDir,
+        windowsVerbatimArguments: true,
+    });
+    core.info('Adding to the cache');
+    const toolPath = await tc.cacheDir(joinPaths(mediaDir, 'setup'), 'sqlserver', config.version);
+    core.debug(`Cached @ ${toolPath}`);
+    return joinPaths(toolPath, 'setup.exe');
+}
+
+/**
  * Downloads an EXE installer
  *
  * @param {VersionConfig} config
@@ -155,6 +210,9 @@ export async function downloadBoxInstaller(config: VersionConfig): Promise<strin
 export async function downloadExeInstaller(config: VersionConfig): Promise<string> {
     if (config.boxUrl) {
         throw new Error('Version requires box installer');
+    }
+    if (!config.exeUrl) {
+        throw new Error('No exeUrl provided');
     }
     const exePath = await downloadTool(config.exeUrl);
     if (core.isDebug()) {

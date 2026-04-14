@@ -10,13 +10,19 @@ interface Config {
 }
 
 export interface VersionConfig extends Config {
-    exeUrl: string;
+    exeUrl?: string;
     boxUrl?: string;
+    sseiUrl?: string;
     updateUrl?: string;
 }
 
 export const VERSIONS = new Map<string, VersionConfig>(
     [
+        ['2025', {
+            version: '2025',
+            sseiUrl: 'https://download.microsoft.com/download/77dc60d3-0139-4dad-83c8-bb52ab22db01/SQL2025-SSEI-StdDev.exe',
+            // updateUrl can be added once Microsoft publishes cumulative updates for 2025
+        }],
         ['2022', {
             version: '2022',
             exeUrl: 'https://download.microsoft.com/download/3/8/d/38de7036-2433-4207-8eae-06e247e17b25/SQLServer2022-DEV-x64-ENU.exe',

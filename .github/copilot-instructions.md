@@ -43,14 +43,14 @@ The build step (`npm run build`) also runs `npm run docs`, which regenerates the
 1. Reads action inputs via `gatherInputs()` from `src/utils.ts`
 2. Validates OS compatibility using version config from `src/versions.ts`
 3. Optionally installs SQL Native Client (`src/install-native-client.ts`) and ODBC driver (`src/install-odbc.ts`)
-4. Downloads or cache-hits the SQL Server installer (box+exe or standalone exe)
+4. Downloads or cache-hits the SQL Server installer (box+exe, standalone exe, or SSEI bootstrapper)
 5. Optionally downloads cumulative updates
 6. Runs the installer via `@actions/exec`
 7. Waits for the database to be ready (exponential backoff)
 
-**Installer abstraction:** `src/installers/` contains a base `Installer` class and `MsiInstaller` subclass used by the native client and ODBC installations. SQL Server itself uses direct exe/box download logic in `src/utils.ts`.
+**Installer abstraction:** `src/installers/` contains a base `Installer` class and `MsiInstaller` subclass used by the native client and ODBC installations. SQL Server itself uses direct exe/box download logic or the SSEI bootstrapper (for 2025+) in `src/utils.ts`.
 
-**Version registry:** `src/versions.ts` defines a `Map<string, VersionConfig>` with download URLs, optional box URLs, update URLs, and OS compatibility constraints for each supported SQL Server version (2008–2022).
+**Version registry:** `src/versions.ts` defines a `Map<string, VersionConfig>` with download URLs (exe/box or SSEI), optional update URLs, and OS compatibility constraints for each supported SQL Server version (2008–2025). SQL Server 2025+ uses the SSEI bootstrapper model (`sseiUrl`) instead of direct exe/box downloads.
 
 **Build output:** `@vercel/ncc` bundles everything into `lib/main/index.js`, which is what `action.yml` references. The `lib/` directory is committed to the repository. **Every commit must include up-to-date build output** — CI checks this by rebuilding and running `git diff-files --quiet`. Always run `npm run build` and commit the resulting changes to `lib/` and `README.md` before pushing.
 
