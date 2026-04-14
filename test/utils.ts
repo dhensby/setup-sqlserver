@@ -8,7 +8,7 @@ import * as io from '@actions/io';
 import * as glob from '@actions/glob';
 import * as http from '@actions/http-client';
 import { Globber } from '@actions/glob';
-import { stub, restore, SinonStubbedMember, SinonStubbedInstance, SinonStub, createStubInstance } from 'sinon';
+import { stub, restore, match, SinonStubbedMember, SinonStubbedInstance, SinonStub, createStubInstance } from 'sinon';
 import { expect, use } from 'chai';
 import sinonChai from 'sinon-chai';
 import * as utils from '../src/utils';
@@ -203,6 +203,14 @@ describe('utils', () => {
         it('resolves', async () => {
             const res = await utils.waitForDatabase('password');
             expect(res).to.equal(0);
+        });
+        it('passes a login timeout to sqlcmd', async () => {
+            await utils.waitForDatabase('password');
+            expect(exec.exec).to.have.been.calledWith(
+                'sqlcmd',
+                match.array.contains(['-l', '5']),
+                match.any,
+            );
         });
     });
     describe('.downloadBoxInstaller()', () => {

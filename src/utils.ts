@@ -103,6 +103,8 @@ export function waitForDatabase(password: string) {
         'sa',
         '-P',
         password,
+        '-l',
+        '5',
         '-Q',
         'SELECT @@VERSION',
     ], {
