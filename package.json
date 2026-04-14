@@ -11,7 +11,8 @@
     "lint:fix": "npm run lint -- --fix",
     "prepare": "npm run build",
     "test": "mocha -r ts-node/register './test/**/**.ts'",
-    "test:coverage": "nyc --all npm run test --silent"
+    "test:coverage": "nyc --all npm run test --silent",
+    "version": "npm run build && git add README.md lib/"
   },
   "files": [
     "action.yml",
