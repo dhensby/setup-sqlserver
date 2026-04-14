@@ -6,7 +6,8 @@
     "rootDir": "./src",                       /* Specify the root directory of input files. Use to control the output directory structure with --outDir. */
     "sourceMap": true,
     "noImplicitAny": false,                   /* Raise error on expressions and declarations with an implied 'any' type. */
-    "resolveJsonModule": true                /* Allows importing modules with a '.json' extension, which is a common practice in node projects. */
+    "resolveJsonModule": true,               /* Allows importing modules with a '.json' extension, which is a common practice in node projects. */
+    "types": ["node", "mocha"]
   },
   "exclude": ["test", "lib", "node_modules", "misc"]
 }
