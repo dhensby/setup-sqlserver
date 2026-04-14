@@ -41,7 +41,7 @@ async function updateUsage(
     actionYamlPath = 'action.yml',
     readmePath = 'README.md',
     startToken = '<!-- start usage -->',
-    endToken = '<!-- end usage -->'
+    endToken = '<!-- end usage -->',
 ): Promise<void> {
     if (!actionReference) {
         throw new Error('Parameter actionReference must not be empty');
@@ -105,7 +105,7 @@ async function updateUsage(
             .replace(/ \n/g, '\n'); //  Squash space followed by newline
         while (description) {
             // Longer than width? Find a space to break apart
-            let segment: string = description;
+            let segment: string;
             if (description.length > width) {
                 segment = description.substr(0, width + 1);
                 while (!segment.endsWith(' ') && !segment.endsWith('\n') && segment) {
@@ -170,5 +170,5 @@ async function updateUsage(
 updateUsage(
     `tediousjs/setup-sqlserver@v${version.split('.')[0]}`,
     path.join(__dirname, '..', 'action.yml'),
-    path.join(__dirname, '..', 'README.md')
+    path.join(__dirname, '..', 'README.md'),
 );
