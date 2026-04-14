@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.1.1](https://github.com/tediousjs/setup-sqlserver/compare/v3.1.0...v3.1.1) (2026-04-14)
+
+### Bug Fixes
+
+* add login timeout to sqlcmd in waitForDatabase ([b18a49f](https://github.com/tediousjs/setup-sqlserver/commit/b18a49f37609e1d8aac5cdc0aa1ffdbcf71d2e9c))
+
 ## [3.1.0](https://github.com/tediousjs/setup-sqlserver/compare/v3.0.0...v3.1.0) (2026-04-14)
 
 ### Features
