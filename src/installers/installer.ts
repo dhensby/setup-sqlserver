@@ -1,7 +1,7 @@
 import { basename, dirname, extname, join as joinPaths } from 'node:path';
-import * as core from '@actions/core';
-import * as tc from '@actions/tool-cache';
-import * as io from '@actions/io';
+import core from '@actions/core';
+import tc from '@actions/tool-cache';
+import io from '@actions/io';
 
 export interface InstallerConfig {
     name: string;

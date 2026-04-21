@@ -1,4 +1,4 @@
-import { MsiInstaller, Urls } from './installers';
+import { MsiInstaller, type Urls } from './installers/index.ts';
 
 const VERSIONS = new Map<string, Urls>([
     ['11', {
@@ -6,7 +6,8 @@ const VERSIONS = new Map<string, Urls>([
         x86: 'https://download.microsoft.com/download/B/E/D/BED73AAC-3C8A-43F5-AF4F-EB4FEA6C8F3A/ENU/x86/sqlncli.msi',
     }],
 ]);
-export default async function installNativeClient(version: string) {
+
+async function install(version: string) {
     if (!VERSIONS.has(version)) {
         throw new TypeError(`Invalid native client version supplied ${version}. Must be one of ${Array.from(VERSIONS.keys()).join(', ')}.`);
     }
@@ -22,3 +23,6 @@ export default async function installNativeClient(version: string) {
     });
     return installer.install();
 }
+
+export default { install };
+

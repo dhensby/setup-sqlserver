@@ -1,21 +1,12 @@
 import { basename, dirname, join as joinPaths } from 'node:path';
-import { readFile } from 'node:fs/promises';
-import * as core from '@actions/core';
-import * as exec from '@actions/exec';
-import * as tc from '@actions/tool-cache';
-import { type VersionConfig, VERSIONS } from './versions';
-import {
-    downloadBoxInstaller,
-    downloadExeInstaller,
-    downloadSseiInstaller,
-    downloadUpdateInstaller,
-    gatherInputs,
-    gatherSummaryFiles,
-    getOsVersion,
-    waitForDatabase,
-} from './utils';
-import installNativeClient from './install-native-client';
-import installOdbc from './install-odbc';
+import fs from 'node:fs/promises';
+import core from '@actions/core';
+import exec from '@actions/exec';
+import tc from '@actions/tool-cache';
+import { type VersionConfig, VERSIONS } from './versions.ts';
+import utils from './utils.ts';
+import nativeClient from './install-native-client.ts';
+import odbcDriver from './install-odbc.ts';
 
 /**
  * Attempt to load the installer from the tool-cache, otherwise, fetch it.
@@ -29,11 +20,11 @@ function findOrDownloadTool(config: VersionConfig): Promise<string> {
         core.info(`Found in cache @ ${toolPath}`);
         return Promise.resolve(joinPaths(toolPath, 'setup.exe'));
     } else if (config.sseiUrl) {
-        return downloadSseiInstaller(config);
+        return utils.downloadSseiInstaller(config);
     } else if (config.boxUrl) {
-        return downloadBoxInstaller(config);
+        return utils.downloadBoxInstaller(config);
     }
-    return downloadExeInstaller(config);
+    return utils.downloadExeInstaller(config);
 }
 
 function findOrDownloadUpdates(config: VersionConfig): Promise<string> {
@@ -42,7 +33,7 @@ function findOrDownloadUpdates(config: VersionConfig): Promise<string> {
         core.info(`Found in cache @ ${toolPath}`);
         return Promise.resolve(joinPaths(toolPath, 'sqlupdate.exe'));
     }
-    return downloadUpdateInstaller(config);
+    return utils.downloadUpdateInstaller(config);
 }
 
 export default async function install() {
@@ -57,12 +48,12 @@ export default async function install() {
         nativeClientVersion,
         odbcVersion,
         installUpdates,
-    } = gatherInputs();
+    } = utils.gatherInputs();
     // we only support windows for now. But allow crazy people to skip this check if they like...
     if (!skipOsCheck && core.platform.platform !== 'win32') {
         throw new Error(`setup-sqlserver only supports Windows runners, got: ${core.platform.platform}`);
     }
-    const osVersion = await getOsVersion();
+    const osVersion = await utils.getOsVersion();
     if (!VERSIONS.has(version)) {
         throw new Error(`Unsupported SQL Version, supported versions are ${Array.from(VERSIONS.keys()).join(', ')}, got: ${version}`);
     }
@@ -92,10 +83,10 @@ export default async function install() {
         }
     }
     if (nativeClientVersion) {
-        await core.group('Installing SQL Native Client', () => installNativeClient(nativeClientVersion));
+        await core.group('Installing SQL Native Client', () => nativeClient.install(nativeClientVersion));
     }
     if (odbcVersion) {
-        await core.group('Installing ODBC', () => installOdbc(odbcVersion));
+        await core.group('Installing ODBC', () => odbcDriver.install(odbcVersion));
     }
     // Initial checks complete - fetch the installer
     const toolPath = await core.group(`Fetching install media for ${version}`, () => findOrDownloadTool(config));
@@ -135,7 +126,7 @@ export default async function install() {
         core.setOutput('instance-name', instanceName);
         if (wait) {
             core.startGroup('Waiting for database');
-            let res = await waitForDatabase(password);
+            let res = await utils.waitForDatabase(password);
             let count = 0;
             while (res !== 0 && count < 5) {
                 const waitTime = Math.pow(2, count);
@@ -143,7 +134,7 @@ export default async function install() {
                 await new Promise((resolve) => setTimeout(resolve, waitTime * 1000));
                 count++;
                 core.debug(`Checking database, attempt ${count}`);
-                res = await waitForDatabase(password);
+                res = await utils.waitForDatabase(password);
                 if (res === 0) {
                     break;
                 }
@@ -166,9 +157,9 @@ export default async function install() {
     } finally {
         // For information purposes, output the summary.txt file
         // if there was an error, then also fetch the detail.txt file and output that too
-        const files = await gatherSummaryFiles(threw || core.isDebug());
+        const files = await utils.gatherSummaryFiles(threw || core.isDebug());
         // read the files in parallel
-        const contents: [string, Buffer][] = await Promise.all(files.map((path) => readFile(path).then((content): [string, Buffer] => {
+        const contents: [string, Buffer][] = await Promise.all(files.map((path) => fs.readFile(path).then((content): [string, Buffer] => {
             return [path, content];
         })));
         // output the files sequentially

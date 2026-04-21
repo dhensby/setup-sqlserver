@@ -1,11 +1,12 @@
-import { restore, SinonStubbedInstance, stub } from 'sinon';
-import * as core from '@actions/core';
-import * as tc from '@actions/tool-cache';
-import * as exec from '@actions/exec';
-import * as io from '@actions/io';
+import { restore, stub } from 'sinon';
+import type { SinonStubbedInstance } from 'sinon';
+import core from '@actions/core';
+import tc from '@actions/tool-cache';
+import exec from '@actions/exec';
+import io from '@actions/io';
 import { expect, use } from 'chai';
 import sinonChai from 'sinon-chai';
-import installOdbc from '../src/install-odbc';
+import installOdbc from '../src/install-odbc.ts';
 use(sinonChai);
 
 describe('install-odbc', () => {
@@ -31,7 +32,7 @@ describe('install-odbc', () => {
     describe('.installOdbc()', () => {
         it('throws for bad version', async () => {
             try {
-                await installOdbc('10');
+                await installOdbc.install('10');
             } catch (e) {
                 expect(e).to.have.property('message', 'Invalid ODBC version supplied 10. Must be one of 18, 17.');
                 return;
@@ -40,7 +41,7 @@ describe('install-odbc', () => {
         });
         it('installs from cache', async () => {
             tcStub.find.returns('C:/tmp/');
-            await installOdbc('18');
+            await installOdbc.install('18');
             expect(tcStub.downloadTool).to.have.callCount(0);
             expect(execStub.exec).to.have.been.calledOnceWith('msiexec', [
                 '/passive',
@@ -57,7 +58,7 @@ describe('install-odbc', () => {
             });
             tcStub.cacheFile.resolves('C:/tmp/cache/');
             tcStub.downloadTool.resolves('C:/tmp/downloads');
-            await installOdbc('17');
+            await installOdbc.install('17');
             expect(tcStub.downloadTool).to.have.been.calledOnceWith('https://go.microsoft.com/fwlink/?linkid=2239168');
             expect(tcStub.cacheFile).to.have.callCount(1);
             expect(execStub.exec).to.have.been.calledOnceWith('msiexec', [
@@ -75,7 +76,7 @@ describe('install-odbc', () => {
             });
             tcStub.cacheFile.resolves('C:/tmp/cache/');
             tcStub.downloadTool.resolves('C:/tmp/downloads');
-            await installOdbc('17');
+            await installOdbc.install('17');
             expect(tcStub.downloadTool).to.have.been.calledOnceWith('https://go.microsoft.com/fwlink/?linkid=2238791');
             expect(tcStub.cacheFile).to.have.callCount(1);
             expect(execStub.exec).to.have.been.calledOnceWith('msiexec', [

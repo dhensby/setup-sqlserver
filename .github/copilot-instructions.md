@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-This is a GitHub Action (`tediousjs/setup-sqlserver`) that installs SQL Server on Windows-based GitHub Action runners. It's built with TypeScript, compiled with `@vercel/ncc`, and runs on Node.js 24.
+This is a GitHub Action (`tediousjs/setup-sqlserver`) that installs SQL Server on Windows-based GitHub Action runners. It's built as a native ESM TypeScript module, bundled with [Rollup](https://rollupjs.org/), and runs on Node.js 24.
 
 ## Local Development
 
@@ -15,24 +15,26 @@ nvm use
 ## Build, Test & Lint
 
 ```sh
-npm run build        # ncc build + auto-generates README usage section from action.yml
-npm run test         # mocha + ts-node (runs all tests)
-npm run test:coverage # tests with nyc coverage
-npm run lint         # eslint across src/, misc/, test/
-npm run lint:fix     # eslint with auto-fix
+npm run build         # rollup bundles src/ to lib/main/index.js + auto-generates README usage section from action.yml
+npm run test          # mocha (using Node 24's native TypeScript type-stripping)
+npm run test:coverage # tests with c8 coverage
+npm run lint          # eslint across src/, misc/, test/
+npm run lint:fix      # eslint with auto-fix
 ```
 
 Run a single test file:
 
 ```sh
-npx mocha -r ts-node/register './test/utils.ts'
+npx mocha './test/utils.ts'
 ```
 
 Run a single test by name:
 
 ```sh
-npx mocha -r ts-node/register './test/**/**.ts' --grep 'correctly returns for windows-2019'
+npx mocha './test/**/**.ts' --grep 'correctly returns for windows-2019'
 ```
+
+TypeScript is executed directly by Node 24 via native type-stripping — no transpiler (no `ts-node`, no `tsx`) is needed to run `.ts` files. This is why test runs are very fast and imports use `.ts` extensions.
 
 The build step (`npm run build`) also runs `npm run docs`, which regenerates the usage section in `README.md` from `action.yml` via `misc/generate-docs.ts`. If you change `action.yml` inputs, rebuild to keep the README in sync.
 
@@ -52,11 +54,16 @@ The build step (`npm run build`) also runs `npm run docs`, which regenerates the
 
 **Version registry:** `src/versions.ts` defines a `Map<string, VersionConfig>` with download URLs (exe/box or SSEI), optional update URLs, and OS compatibility constraints for each supported SQL Server version (2008–2025). SQL Server 2025+ uses the SSEI bootstrapper model (`sseiUrl`) instead of direct exe/box downloads.
 
-**Build output:** `@vercel/ncc` bundles everything into `lib/main/index.js`, which is what `action.yml` references. The `lib/` directory is committed to the repository. **Every commit must include up-to-date build output** — CI checks this by rebuilding and running `git diff-files --quiet`. Always run `npm run build` and commit the resulting changes to `lib/` and `README.md` before pushing.
+**Build output:** Rollup (config in `rollup.config.mjs`) bundles everything into `lib/main/index.js` as a minified ESM module, which is what `action.yml` references. The `lib/` directory is committed to the repository. **Every commit must include up-to-date build output** — CI checks this by rebuilding and running `git diff-files --quiet`. Always run `npm run build` and commit the resulting changes to `lib/` and `README.md` before pushing.
+
+**ESM module format:** The package is published as ESM (`"type": "module"` in `package.json`). Consequences for contributors:
+
+- Relative imports must use explicit file extensions. In this codebase we use `.ts` extensions (e.g., `import { foo } from './bar.ts'`), which Node 24 resolves directly via native type-stripping, and Rollup resolves via `@rollup/plugin-typescript`. TypeScript is configured with `allowImportingTsExtensions: true` and `rewriteRelativeImportExtensions: true` so the emitted types remain valid.
+- For runtime values that need to be stubbable in tests, modules export a default object (e.g., `src/utils.ts` ends with `export default { ... }`) and call-sites use `import utils from './utils.ts'; utils.foo()`. This pattern is required because **ES module named-export bindings cannot be rebound** — sinon can only mutate properties on a shared object, not rebind a module-level binding. The same reason is why `@actions/*` packages are imported via default (`import core from '@actions/core'`) rather than as a namespace (`import * as core`): the default import returns the mutable CJS `module.exports`, but a namespace import is frozen.
 
 ## Conventions
 
-- **Testing:** Mocha + Chai + Sinon. Tests heavily stub `@actions/*` packages and module-level dependencies using `sinon.stub()`. Each test file mirrors its source file (e.g., `test/install.ts` tests `src/install.ts`).
+- **Testing:** Mocha + Chai + Sinon, run under Node 24's native TypeScript type-stripping (no transpiler). Tests stub `@actions/*` packages and module-level dependencies using `sinon.stub()` on default-imported objects (see the "ESM module format" note above). Each test file mirrors its source file (e.g., `test/install.ts` tests `src/install.ts`).
 - **Commit messages:** Follow [Conventional Commits](https://www.conventionalcommits.org/) enforced by commitlint. Semantic-release uses these to generate automated releases and changelogs, so correct commit types are critical.
   - `fix` — Bug fixes or behavioural corrections that don't change public interfaces. Triggers a **patch** release.
   - `feat` — New backwards-compatible functionality (e.g., adding a new input, method, or option without removing anything). Triggers a **minor** release.

@@ -1,8 +1,8 @@
 import { join as joinPaths } from 'node:path';
-import * as core from '@actions/core';
-import * as tc from '@actions/tool-cache';
-import * as exec from '@actions/exec';
-import { Installer, InstallerConfig } from './installer';
+import core from '@actions/core';
+import tc from '@actions/tool-cache';
+import exec from '@actions/exec';
+import { Installer, type InstallerConfig } from './installer.ts';
 
 export interface Urls {
     x64?: string;

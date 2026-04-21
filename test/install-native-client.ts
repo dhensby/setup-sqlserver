@@ -1,11 +1,12 @@
-import { match, restore, SinonStubbedInstance, stub } from 'sinon';
-import * as core from '@actions/core';
-import * as tc from '@actions/tool-cache';
-import * as exec from '@actions/exec';
-import * as io from '@actions/io';
+import { match, restore, stub } from 'sinon';
+import type { SinonStubbedInstance } from 'sinon';
+import core from '@actions/core';
+import tc from '@actions/tool-cache';
+import exec from '@actions/exec';
+import io from '@actions/io';
 import { expect, use } from 'chai';
 import sinonChai from 'sinon-chai';
-import installNativeClient from '../src/install-native-client';
+import installNativeClient from '../src/install-native-client.ts';
 use(sinonChai);
 
 describe('install-native-client', () => {
@@ -31,7 +32,7 @@ describe('install-native-client', () => {
     describe('.installNativeClient()', () => {
         it('throws for bad version', async () => {
             try {
-                await installNativeClient('10');
+                await installNativeClient.install('10');
             } catch (e) {
                 expect(e).to.have.property('message', 'Invalid native client version supplied 10. Must be one of 11.');
                 return;
@@ -40,7 +41,7 @@ describe('install-native-client', () => {
         });
         it('installs from cache', async () => {
             tcStub.find.returns('C:/tmp/');
-            await installNativeClient('11');
+            await installNativeClient.install('11');
             expect(tcStub.downloadTool).to.have.callCount(0);
             expect(execStub.exec).to.have.been.calledOnceWith('msiexec', match.array, {
                 windowsVerbatimArguments: true,
@@ -53,7 +54,7 @@ describe('install-native-client', () => {
             });
             tcStub.cacheFile.resolves('C:/tmp/cache/');
             tcStub.downloadTool.resolves('C:/tmp/downloads');
-            await installNativeClient('11');
+            await installNativeClient.install('11');
             expect(tcStub.downloadTool).to.have.been.calledOnceWith('https://download.microsoft.com/download/B/E/D/BED73AAC-3C8A-43F5-AF4F-EB4FEA6C8F3A/ENU/x64/sqlncli.msi');
             expect(tcStub.cacheFile).to.have.callCount(1);
             expect(execStub.exec).to.have.been.calledOnceWith('msiexec', match.array, {
@@ -67,7 +68,7 @@ describe('install-native-client', () => {
             });
             tcStub.cacheFile.resolves('C:/tmp/cache/');
             tcStub.downloadTool.resolves('C:/tmp/downloads');
-            await installNativeClient('11');
+            await installNativeClient.install('11');
             expect(tcStub.downloadTool).to.have.been.calledOnceWith('https://download.microsoft.com/download/B/E/D/BED73AAC-3C8A-43F5-AF4F-EB4FEA6C8F3A/ENU/x86/sqlncli.msi');
             expect(tcStub.cacheFile).to.have.callCount(1);
             expect(execStub.exec).to.have.been.calledOnceWith('msiexec', match.array, {

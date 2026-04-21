@@ -1,15 +1,16 @@
 import fs from 'node:fs/promises';
-import * as core from '@actions/core';
-import * as tc from '@actions/tool-cache';
-import * as exec from '@actions/exec';
-import { match, restore, SinonStubbedInstance, stub, useFakeTimers } from 'sinon';
+import core from '@actions/core';
+import tc from '@actions/tool-cache';
+import exec from '@actions/exec';
+import { match, restore, stub, useFakeTimers } from 'sinon';
+import type { SinonStubbedInstance } from 'sinon';
 import { expect, use } from 'chai';
 import sinonChai from 'sinon-chai';
-import * as versions from '../src/versions';
-import * as nativeClient from '../src/install-native-client';
-import * as odbcDriver from '../src/install-odbc';
-import * as utils from '../src/utils';
-import install from '../src/install';
+import * as versions from '../src/versions.ts';
+import nativeClient from '../src/install-native-client.ts';
+import odbcDriver from '../src/install-odbc.ts';
+import utils from '../src/utils.ts';
+import install from '../src/install.ts';
 use(sinonChai);
 
 describe('install', () => {
@@ -422,7 +423,7 @@ describe('install', () => {
             installUpdates: false,
         });
         await install();
-        expect(stubNc.default).to.have.been.calledOnceWith('11');
+        expect(stubNc.install).to.have.been.calledOnceWith('11');
     });
     it('installs odbc driver if needed', async () => {
         utilsStub.gatherInputs.returns({
@@ -437,7 +438,7 @@ describe('install', () => {
             installUpdates: false,
         });
         await install();
-        expect(stubNc.default).to.have.been.calledOnceWith('11');
-        expect(stubOdbc.default).to.have.been.calledOnceWith('18');
+        expect(stubNc.install).to.have.been.calledOnceWith('11');
+        expect(stubOdbc.install).to.have.been.calledOnceWith('18');
     });
 });

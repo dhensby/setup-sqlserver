@@ -1,7 +1,9 @@
-import fs, { ReadStream } from 'node:fs';
-import { restore, SinonStubbedInstance, SinonStubbedMember, stub } from 'sinon';
+import fs from 'node:fs';
+import type { ReadStream } from 'node:fs';
+import { restore, stub } from 'sinon';
+import type { SinonStubbedInstance, SinonStubbedMember } from 'sinon';
 import { expect } from 'chai';
-import { generateFileHash } from '../src/crypto';
+import { generateFileHash } from '../src/crypto.ts';
 
 describe('crypto', () => {
     afterEach('restore stubs', () => {

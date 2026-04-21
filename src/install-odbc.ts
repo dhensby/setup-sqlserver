@@ -1,4 +1,4 @@
-import { MsiInstaller, Urls } from './installers';
+import { MsiInstaller, type Urls } from './installers/index.ts';
 
 // https://learn.microsoft.com/en-us/sql/connect/odbc/download-odbc-driver-for-sql-server?view=sql-server-ver16
 const VERSIONS = new Map<string, Urls>([
@@ -12,7 +12,7 @@ const VERSIONS = new Map<string, Urls>([
     }],
 ]);
 
-export default async function installOdbc(version: string) {
+async function install(version: string) {
     if (!VERSIONS.has(version)) {
         throw new TypeError(`Invalid ODBC version supplied ${version}. Must be one of ${Array.from(VERSIONS.keys()).join(', ')}.`);
     }
@@ -26,3 +26,6 @@ export default async function installOdbc(version: string) {
     });
     return installer.install();
 }
+
+export default { install };
+

@@ -1,18 +1,19 @@
 import { randomBytes, randomUUID } from 'node:crypto';
 import fs from 'node:fs/promises';
-import { IncomingMessage } from 'node:http';
-import * as exec from '@actions/exec';
-import * as core from '@actions/core';
-import * as tc from '@actions/tool-cache';
-import * as io from '@actions/io';
-import * as glob from '@actions/glob';
-import * as http from '@actions/http-client';
-import { Globber } from '@actions/glob';
-import { stub, restore, match, SinonStubbedMember, SinonStubbedInstance, SinonStub, createStubInstance } from 'sinon';
+import exec from '@actions/exec';
+import core from '@actions/core';
+import tc from '@actions/tool-cache';
+import io from '@actions/io';
+import glob from '@actions/glob';
+import http from '@actions/http-client';
+import type { IncomingMessage } from 'node:http';
+import type { Globber } from '@actions/glob';
+import { stub, restore, match, createStubInstance } from 'sinon';
+import type { SinonStubbedMember, SinonStubbedInstance, SinonStub } from 'sinon';
 import { expect, use } from 'chai';
 import sinonChai from 'sinon-chai';
-import * as utils from '../src/utils';
-import * as crypto from '../src/crypto';
+import utils from '../src/utils.ts';
+import crypto from '../src/crypto.ts';
 use(sinonChai);
 
 describe('utils', () => {

@@ -1,10 +1,11 @@
 import { randomUUID } from 'node:crypto';
 import { expect } from 'chai';
-import { stub, restore, SinonStubbedInstance } from 'sinon';
-import * as core from '@actions/core';
-import * as tc from '@actions/tool-cache';
-import * as io from '@actions/io';
-import { Installer } from '../../src/installers/installer';
+import { stub, restore } from 'sinon';
+import type { SinonStubbedInstance } from 'sinon';
+import core from '@actions/core';
+import tc from '@actions/tool-cache';
+import io from '@actions/io';
+import { Installer } from '../../src/installers/installer.ts';
 
 class TestInstaller extends Installer {
     install(): Promise<void> {

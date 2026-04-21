@@ -1,12 +1,13 @@
 import { randomUUID } from 'node:crypto';
 import { expect, use } from 'chai';
 import sinonChai from 'sinon-chai';
-import { stub, restore, SinonStubbedInstance } from 'sinon';
-import * as core from '@actions/core';
-import * as tc from '@actions/tool-cache';
-import * as io from '@actions/io';
-import * as exec from '@actions/exec';
-import { MsiInstaller } from '../../src/installers';
+import { stub, restore } from 'sinon';
+import type { SinonStubbedInstance } from 'sinon';
+import core from '@actions/core';
+import tc from '@actions/tool-cache';
+import io from '@actions/io';
+import exec from '@actions/exec';
+import { MsiInstaller } from '../../src/installers/index.ts';
 use(sinonChai);
 
 describe('Installer', () => {

@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { createReadStream } from 'node:fs';
+import fs from 'node:fs';
 
 /**
  * Generate a sha256 hash of a file from its path.
@@ -11,7 +11,7 @@ import { createReadStream } from 'node:fs';
 export function generateFileHash(path: string): Promise<Buffer> {
     return new Promise((resolve, reject) => {
         const hash = createHash('sha256');
-        const fh = createReadStream(path);
+        const fh = fs.createReadStream(path);
         fh.on('error', reject);
         fh.on('readable', () => {
             const data = fh.read();
@@ -23,3 +23,6 @@ export function generateFileHash(path: string): Promise<Buffer> {
         });
     });
 }
+
+export default { generateFileHash };
+

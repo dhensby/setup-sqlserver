@@ -1,13 +1,13 @@
 import { basename, extname, dirname, join as joinPaths } from 'node:path';
-import { readdir } from 'node:fs/promises';
-import * as core from '@actions/core';
-import * as exec from '@actions/exec';
-import * as glob from '@actions/glob';
-import * as http from '@actions/http-client';
-import * as io from '@actions/io';
-import * as tc from '@actions/tool-cache';
-import { generateFileHash } from './crypto';
-import type { VersionConfig } from './versions';
+import fs from 'node:fs/promises';
+import core from '@actions/core';
+import exec from '@actions/exec';
+import glob from '@actions/glob';
+import http from '@actions/http-client';
+import io from '@actions/io';
+import tc from '@actions/tool-cache';
+import crypto from './crypto.ts';
+import type { VersionConfig } from './versions.ts';
 
 /**
  * Helper function to determine the runner being used. Uses `systeminfo` to gather version.
@@ -131,8 +131,8 @@ export async function downloadBoxInstaller(config: VersionConfig): Promise<strin
     ]);
     if (core.isDebug()) {
         const hashes = await Promise.all([
-            generateFileHash(exePath),
-            generateFileHash(boxPath),
+            crypto.generateFileHash(exePath),
+            crypto.generateFileHash(boxPath),
         ]);
         core.debug(`Got setup file (exe) with hash SHA256=${hashes[0].toString('base64')}`);
         core.debug(`Got setup file (box) with hash SHA256=${hashes[1].toString('base64')}`);
@@ -167,7 +167,7 @@ export async function downloadSseiInstaller(config: VersionConfig): Promise<stri
     // download the SSEI bootstrapper
     const sseiPath = await downloadTool(config.sseiUrl);
     if (core.isDebug()) {
-        const hash = await generateFileHash(sseiPath);
+        const hash = await crypto.generateFileHash(sseiPath);
         core.debug(`Got SSEI bootstrapper with hash SHA256=${hash.toString('base64')}`);
     }
     // use the bootstrapper to download the actual media
@@ -183,7 +183,7 @@ export async function downloadSseiInstaller(config: VersionConfig): Promise<stri
         windowsVerbatimArguments: true,
     });
     // find the downloaded exe in the media directory
-    const files = await readdir(mediaDir);
+    const files = await fs.readdir(mediaDir);
     const exeFile = files.find((f) => f.endsWith('.exe') && f !== basename(sseiPath));
     if (!exeFile) {
         throw new Error('SSEI bootstrapper did not produce an installer exe');
@@ -218,7 +218,7 @@ export async function downloadExeInstaller(config: VersionConfig): Promise<strin
     }
     const exePath = await downloadTool(config.exeUrl);
     if (core.isDebug()) {
-        const hash = await generateFileHash(exePath);
+        const hash = await crypto.generateFileHash(exePath);
         core.debug(`Got setup file (exe) with hash SHA256=${hash.toString('base64')}`);
     }
     core.info('Adding to the cache');
@@ -261,7 +261,7 @@ export async function downloadUpdateInstaller(config: VersionConfig): Promise<st
     core.info(`Downloading cumulative update from ${downloadLink ?? config.updateUrl}`);
     const updatePath = await downloadTool(downloadLink ?? config.updateUrl);
     if (core.isDebug()) {
-        const hash = await generateFileHash(updatePath);
+        const hash = await crypto.generateFileHash(updatePath);
         core.debug(`Got update file with hash SHA256=${hash.toString('base64')}`);
     }
     core.info('Adding to the cache');
@@ -305,3 +305,15 @@ export async function gatherSummaryFiles(withDetail: boolean = false): Promise<s
         }) : undefined;
     return summaryFiles.concat(detailFile ? [detailFile] : []);
 }
+
+export default {
+    getOsVersion,
+    gatherInputs,
+    downloadTool,
+    waitForDatabase,
+    downloadBoxInstaller,
+    downloadSseiInstaller,
+    downloadExeInstaller,
+    downloadUpdateInstaller,
+    gatherSummaryFiles,
+};
