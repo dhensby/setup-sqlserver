@@ -1,7 +1,5 @@
 import { basename, dirname, extname, join as joinPaths } from 'node:path';
-import core from '@actions/core';
-import tc from '@actions/tool-cache';
-import io from '@actions/io';
+import { core, io, tc } from '../actions.ts';
 
 export interface InstallerConfig {
     name: string;

@@ -1,11 +1,6 @@
 import { randomBytes, randomUUID } from 'node:crypto';
 import fs from 'node:fs/promises';
-import exec from '@actions/exec';
-import core from '@actions/core';
-import tc from '@actions/tool-cache';
-import io from '@actions/io';
-import glob from '@actions/glob';
-import http from '@actions/http-client';
+import { core, exec, glob, http, io, tc } from '../src/actions.ts';
 import type { IncomingMessage } from 'node:http';
 import type { Globber } from '@actions/glob';
 import { stub, restore, match, createStubInstance } from 'sinon';

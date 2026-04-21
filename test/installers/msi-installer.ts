@@ -3,10 +3,7 @@ import { expect, use } from 'chai';
 import sinonChai from 'sinon-chai';
 import { stub, restore } from 'sinon';
 import type { SinonStubbedInstance } from 'sinon';
-import core from '@actions/core';
-import tc from '@actions/tool-cache';
-import io from '@actions/io';
-import exec from '@actions/exec';
+import { core, exec, io, tc } from '../../src/actions.ts';
 import { MsiInstaller } from '../../src/installers/index.ts';
 use(sinonChai);
 

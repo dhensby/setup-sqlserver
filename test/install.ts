@@ -1,7 +1,5 @@
 import fs from 'node:fs/promises';
-import core from '@actions/core';
-import tc from '@actions/tool-cache';
-import exec from '@actions/exec';
+import { core, exec, tc } from '../src/actions.ts';
 import { match, restore, stub, useFakeTimers } from 'sinon';
 import type { SinonStubbedInstance } from 'sinon';
 import { expect, use } from 'chai';

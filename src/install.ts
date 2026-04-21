@@ -1,8 +1,6 @@
 import { basename, dirname, join as joinPaths } from 'node:path';
 import fs from 'node:fs/promises';
-import core from '@actions/core';
-import exec from '@actions/exec';
-import tc from '@actions/tool-cache';
+import { core, exec, tc } from './actions.ts';
 import { type VersionConfig, VERSIONS } from './versions.ts';
 import utils from './utils.ts';
 import nativeClient from './install-native-client.ts';

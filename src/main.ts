@@ -1,4 +1,4 @@
-import core from '@actions/core';
+import { core } from './actions.ts';
 import install from './install.ts';
 
 (() => install().catch((e) => {

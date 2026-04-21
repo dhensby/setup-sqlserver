@@ -1,7 +1,5 @@
 import { join as joinPaths } from 'node:path';
-import core from '@actions/core';
-import tc from '@actions/tool-cache';
-import exec from '@actions/exec';
+import { core, exec, tc } from '../actions.ts';
 import { Installer, type InstallerConfig } from './installer.ts';
 
 export interface Urls {

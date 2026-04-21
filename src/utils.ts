@@ -1,11 +1,6 @@
 import { basename, extname, dirname, join as joinPaths } from 'node:path';
 import fs from 'node:fs/promises';
-import core from '@actions/core';
-import exec from '@actions/exec';
-import glob from '@actions/glob';
-import http from '@actions/http-client';
-import io from '@actions/io';
-import tc from '@actions/tool-cache';
+import { core, exec, glob, http, io, tc } from './actions.ts';
 import crypto from './crypto.ts';
 import type { VersionConfig } from './versions.ts';
 

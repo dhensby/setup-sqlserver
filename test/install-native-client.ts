@@ -1,9 +1,6 @@
 import { match, restore, stub } from 'sinon';
 import type { SinonStubbedInstance } from 'sinon';
-import core from '@actions/core';
-import tc from '@actions/tool-cache';
-import exec from '@actions/exec';
-import io from '@actions/io';
+import { core, exec, io, tc } from '../src/actions.ts';
 import { expect, use } from 'chai';
 import sinonChai from 'sinon-chai';
 import installNativeClient from '../src/install-native-client.ts';
