@@ -1,0 +1,184 @@
+name: Sector size experiment
+
+# Throwaway experiment: find runners whose C: reports a physical sector size over 4 KB, and test whether moving the
+# SQL Server data directory (and optionally the instance directory) to a volume with 4 KB sectors lets setup succeed.
+# The arguments go through the existing install-arguments input, so the action code is unchanged.
+
+on:
+  push:
+    branches:
+      - 'experiment/large-sector-*'
+
+permissions:
+  contents: read
+
+env:
+  # set to 'true' to install every third job on an affected host without a workaround, as a control
+  CONTROL: ''
+
+jobs:
+  hunt:
+    strategy:
+      fail-fast: false
+      max-parallel: 60
+      matrix:
+        # since October only windows-2022 runners have reported C: over 4 KB, so hunt there; the windows-2025 jobs
+        # only check that each workaround installs cleanly on a normal host
+        os: [ 'windows-2022' ]
+        sqlserver: [ 'sql-2016', 'sql-2017', 'sql-2019', 'sql-2022', 'sql-2025' ]
+        n: [ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46 ]
+        include:
+          - { os: windows-2025, sqlserver: sql-2016, n: 1 }
+          - { os: windows-2025, sqlserver: sql-2016, n: 2 }
+          - { os: windows-2025, sqlserver: sql-2017, n: 1 }
+          - { os: windows-2025, sqlserver: sql-2017, n: 2 }
+          - { os: windows-2025, sqlserver: sql-2019, n: 1 }
+          - { os: windows-2025, sqlserver: sql-2019, n: 2 }
+          - { os: windows-2025, sqlserver: sql-2022, n: 1 }
+          - { os: windows-2025, sqlserver: sql-2022, n: 2 }
+          - { os: windows-2025, sqlserver: sql-2025, n: 1 }
+          - { os: windows-2025, sqlserver: sql-2025, n: 2 }
+    name: hunt (${{ matrix.os }}, ${{ matrix.sqlserver }}, ${{ matrix.n }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    steps:
+      - name: Inspect host and choose a mode
+        id: plan
+        shell: pwsh
+        env:
+          N: ${{ matrix.n }}
+        run: |
+          try {
+            $vmSize = Invoke-RestMethod -Headers @{ Metadata = 'true' } -TimeoutSec 5 -Uri 'http://169.254.169.254/metadata/instance/compute/vmSize?api-version=2021-02-01&format=text'
+          } catch {
+            $vmSize = 'unknown'
+          }
+          Write-Host "VM size: $vmSize"
+          Write-Host "CPU: $((Get-CimInstance Win32_Processor).Name)"
+          Get-PhysicalDisk | Format-Table -AutoSize FriendlyName, BusType, MediaType, LogicalSectorSize, PhysicalSectorSize | Out-Host
+          # the larger of the two physical sector values that fsutil reports, as Microsoft's troubleshooting page says
+          function Get-SectorSize([string] $letter) {
+            $info = fsutil fsinfo sectorinfo "${letter}:"
+            $values = $info | Where-Object { $_ -match '^PhysicalBytesPerSectorFor(Atomicity|Performance)\s*:\s*(\d+)' } | ForEach-Object { [int]($_ -replace '^[^:]*:\s*', '') }
+            ($values | Measure-Object -Maximum).Maximum
+          }
+          $sizes = [ordered]@{}
+          foreach ($volume in Get-Volume | Where-Object { $_.DriveLetter -and $_.DriveType -eq 'Fixed' } | Sort-Object DriveLetter) {
+            $letter = [string]$volume.DriveLetter
+            $sizes[$letter] = Get-SectorSize $letter
+            Write-Host "${letter}: sector $($sizes[$letter]), free $([math]::Round($volume.SizeRemaining / 1GB)) GB, file system $($volume.FileSystem)"
+          }
+          $affected = $sizes['C'] -gt 4096
+          $target = ($sizes.Keys | Where-Object { $_ -ne 'C' -and $sizes[$_] -le 4096 } | Select-Object -First 1)
+          $n = [int]$env:N
+          if ($affected) {
+            # on an affected host, alternate the two candidate workarounds; the optional control arm installs with no
+            # workaround to confirm that this version fails on this hardware
+            if ($env:CONTROL -and ($n % 3) -eq 0) {
+              $mode = 'control'
+            } elseif ($n % 2) {
+              $mode = 'datadir'
+            } else {
+              $mode = 'datadir+instancedir'
+            }
+          } else {
+            # on a normal host, check that each workaround installs cleanly and puts the files on the other volume
+            $mode = @{ 1 = 'datadir'; 2 = 'datadir+instancedir' }[$n]
+            if (-not $mode) { $mode = 'skip' }
+          }
+          $root = "${target}:\Microsoft SQL Server"
+          $arguments = switch ($mode) {
+            'datadir' { "/INSTALLSQLDATADIR=`"$root`"" }
+            'datadir+instancedir' { "/INSTALLSQLDATADIR=`"$root`""; "/INSTANCEDIR=`"$root`"" }
+            default { @() }
+          }
+          Write-Host "Affected: $affected; target volume: $target; mode: $mode"
+          Write-Host "Arguments: $($arguments -join ' ')"
+          "affected=$affected" >> $env:GITHUB_OUTPUT
+          "mode=$mode" >> $env:GITHUB_OUTPUT
+          "vm=$vmSize" >> $env:GITHUB_OUTPUT
+          "c=$($sizes['C'])" >> $env:GITHUB_OUTPUT
+          "d=$($sizes['D'])" >> $env:GITHUB_OUTPUT
+          "root=$root" >> $env:GITHUB_OUTPUT
+          $delimiter = [guid]::NewGuid()
+          "args<<$delimiter" >> $env:GITHUB_OUTPUT
+          $arguments | ForEach-Object { $_ >> $env:GITHUB_OUTPUT }
+          "$delimiter" >> $env:GITHUB_OUTPUT
+      - name: Checkout code
+        if: steps.plan.outputs.mode != 'skip'
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Install sql server
+        id: install
+        if: steps.plan.outputs.mode != 'skip'
+        uses: ./
+        with:
+          sqlserver-version: ${{ matrix.sqlserver }}
+          install-updates: true
+          install-arguments: ${{ steps.plan.outputs.args }}
+      - name: Check the installed instance
+        id: check
+        if: steps.plan.outputs.mode != 'skip'
+        shell: pwsh
+        env:
+          SQLCMDPASSWORD: ${{ steps.install.outputs.sa-password }}
+        run: |
+          $ErrorActionPreference = 'Continue'
+          function Invoke-Query([string] $query) {
+            $output = sqlcmd -S 'tcp:127.0.0.1,1433' -U sa -b -l 15 -h -1 -W -s '|' -Q "SET NOCOUNT ON; $query" 2>&1
+            if ($LASTEXITCODE -ne 0) { throw "Query failed: $output" }
+            $output
+          }
+          Write-Host '--- version'
+          Invoke-Query "SELECT @@VERSION" | Out-Host
+          Write-Host '--- database files'
+          Invoke-Query "SELECT DB_NAME(database_id), type_desc, physical_name FROM sys.master_files ORDER BY database_id, file_id" | Out-Host
+          Write-Host '--- default paths and error log'
+          Invoke-Query "SELECT CAST(SERVERPROPERTY('InstanceDefaultDataPath') AS nvarchar(260)), CAST(SERVERPROPERTY('InstanceDefaultLogPath') AS nvarchar(260)), CAST(SERVERPROPERTY('ErrorLogFileName') AS nvarchar(260))" | Out-Host
+          Write-Host '--- create, write, back up and read a user database'
+          Invoke-Query "CREATE DATABASE sector_test; ALTER DATABASE sector_test SET RECOVERY FULL;" | Out-Host
+          Invoke-Query "USE sector_test; CREATE TABLE t (id int IDENTITY PRIMARY KEY, v nvarchar(400)); INSERT t (v) SELECT TOP (20000) REPLICATE(N'x', 400) FROM sys.all_objects a CROSS JOIN sys.all_objects b; CHECKPOINT;" | Out-Host
+          Invoke-Query "BACKUP DATABASE sector_test TO DISK = N'sector_test.bak' WITH INIT; BACKUP LOG sector_test TO DISK = N'sector_test.trn' WITH INIT;" | Out-Host
+          Invoke-Query "SELECT COUNT(*) FROM sector_test.dbo.t; SELECT physical_device_name FROM msdb.dbo.backupmediafamily;" | Out-Host
+          Write-Host '--- restart the engine and read again'
+          Restart-Service -Name MSSQLSERVER -Force
+          Start-Sleep -Seconds 5
+          $rows = $null
+          for ($attempt = 1; $attempt -le 12 -and -not $rows; $attempt++) {
+            try { $rows = Invoke-Query "SELECT COUNT(*) FROM sector_test.dbo.t" } catch { Start-Sleep -Seconds 5 }
+          }
+          if (-not $rows) { throw 'The engine did not come back after a restart' }
+          Write-Host "Rows after restart: $rows"
+          Write-Host '--- database files left on C:'
+          Get-ChildItem 'C:\Program Files\Microsoft SQL Server' -Recurse -Include *.mdf, *.ndf, *.ldf -ErrorAction SilentlyContinue | ForEach-Object { $_.FullName } | Out-Host
+          Write-Host '--- misaligned IO or sector messages in the current error log'
+          $log = (Invoke-Query "SELECT CAST(SERVERPROPERTY('ErrorLogFileName') AS nvarchar(260))" | Select-Object -Last 1).Trim()
+          Select-String -Path $log -Pattern 'misaligned|sector size|5178|5179|5173' | ForEach-Object { $_.Line } | Out-Host
+      - name: Record the result
+        if: always()
+        shell: pwsh
+        env:
+          OS: ${{ matrix.os }}
+          SQLSERVER: ${{ matrix.sqlserver }}
+          N: ${{ matrix.n }}
+          VM: ${{ steps.plan.outputs.vm }}
+          C: ${{ steps.plan.outputs.c }}
+          D: ${{ steps.plan.outputs.d }}
+          MODE: ${{ steps.plan.outputs.mode }}
+          INSTALL: ${{ steps.install.outcome }}
+          CHECK: ${{ steps.check.outcome }}
+        run: |
+          $line = "RESULT`t$env:OS`t$env:SQLSERVER`t$env:N`t$env:VM`tC=$env:C`tD=$env:D`t$env:MODE`tinstall=$env:INSTALL`tcheck=$env:CHECK"
+          Write-Host $line
+          "``$line``" >> $env:GITHUB_STEP_SUMMARY
+      - name: Upload SQL Server logs
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: sqlserver-logs-${{ matrix.os }}-${{ matrix.sqlserver }}-${{ matrix.n }}-${{ github.run_attempt }}
+          path: |
+            C:/Program Files/Microsoft SQL Server/*/Setup Bootstrap/Log/
+            C:/Program Files/Microsoft SQL Server/MSSQL*/MSSQL/Log/
+            ${{ steps.plan.outputs.root }}/MSSQL*/MSSQL/Log/
+          if-no-files-found: ignore
