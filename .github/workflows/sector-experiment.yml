@@ -22,22 +22,11 @@ jobs:
       fail-fast: false
       max-parallel: 60
       matrix:
-        # since October only windows-2022 runners have reported C: over 4 KB, so hunt there; the windows-2025 jobs
-        # only check that each workaround installs cleanly on a normal host
+        # round 2: the first round showed that /INSTALLSQLDATADIR alone fails on an affected host (the resource
+        # database stays on C:), and that both switches pass on 2016 and 2017, so hunt for 2019, 2022 and 2025 only
         os: [ 'windows-2022' ]
-        sqlserver: [ 'sql-2016', 'sql-2017', 'sql-2019', 'sql-2022', 'sql-2025' ]
-        n: [ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46 ]
-        include:
-          - { os: windows-2025, sqlserver: sql-2016, n: 1 }
-          - { os: windows-2025, sqlserver: sql-2016, n: 2 }
-          - { os: windows-2025, sqlserver: sql-2017, n: 1 }
-          - { os: windows-2025, sqlserver: sql-2017, n: 2 }
-          - { os: windows-2025, sqlserver: sql-2019, n: 1 }
-          - { os: windows-2025, sqlserver: sql-2019, n: 2 }
-          - { os: windows-2025, sqlserver: sql-2022, n: 1 }
-          - { os: windows-2025, sqlserver: sql-2022, n: 2 }
-          - { os: windows-2025, sqlserver: sql-2025, n: 1 }
-          - { os: windows-2025, sqlserver: sql-2025, n: 2 }
+        sqlserver: [ 'sql-2019', 'sql-2022', 'sql-2025' ]
+        n: [ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80 ]
     name: hunt (${{ matrix.os }}, ${{ matrix.sqlserver }}, ${{ matrix.n }})
     runs-on: ${{ matrix.os }}
     timeout-minutes: 40
@@ -72,19 +61,15 @@ jobs:
           $target = ($sizes.Keys | Where-Object { $_ -ne 'C' -and $sizes[$_] -le 4096 } | Select-Object -First 1)
           $n = [int]$env:N
           if ($affected) {
-            # on an affected host, alternate the two candidate workarounds; the optional control arm installs with no
-            # workaround to confirm that this version fails on this hardware
+            # the optional control arm installs with no workaround to confirm that this version fails on this hardware
             if ($env:CONTROL -and ($n % 3) -eq 0) {
               $mode = 'control'
-            } elseif ($n % 2) {
-              $mode = 'datadir'
             } else {
               $mode = 'datadir+instancedir'
             }
           } else {
-            # on a normal host, check that each workaround installs cleanly and puts the files on the other volume
-            $mode = @{ 1 = 'datadir'; 2 = 'datadir+instancedir' }[$n]
-            if (-not $mode) { $mode = 'skip' }
+            # the first round already installed each workaround on normal hosts
+            $mode = 'skip'
           }
           $root = "${target}:\Microsoft SQL Server"
           $arguments = switch ($mode) {
