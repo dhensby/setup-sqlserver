@@ -1,0 +1,5 @@
+name: CU page probe
+description: Probe how the Microsoft cumulative update pages answer different HTTP clients
+runs:
+  using: 'node24'
+  main: 'probe.mjs'
