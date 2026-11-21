@@ -105,7 +105,7 @@ async function withProxyEnv(fn) {
 }
 
 const probes = [];
-for (const [version, url] of Object.entries(PAGES)) {
+for (const [version, url] of Object.entries(process.env.CU_PROBE_ALL ? PAGES : {})) {
     probes.push([version, 'native fetch', () => viaFetch(url)]);
     probes.push([version, 'http-client (default user agent)', () => viaHttpClient(url)]);
     probes.push([version, 'http-client (user agent "node")', () => viaHttpClient(url, 'node')]);
@@ -115,6 +115,15 @@ probes.push(['2022', 'native fetch + undici EnvHttpProxyAgent', () => withProxyE
 probes.push(['2022', 'native fetch, NODE_USE_ENV_PROXY=1 at start', () => viaChild(url, { NODE_USE_ENV_PROXY: '1', HTTPS_PROXY: proxyUrl })]);
 probes.push(['2022', 'native fetch, NODE_USE_ENV_PROXY set at runtime', () => viaChild(url, {}, true)]);
 probes.push(['2022', 'native fetch, HTTPS_PROXY only', () => viaChild(url, { HTTPS_PROXY: proxyUrl })]);
+probes.push(['2022', 'native fetch + http-client getAgentDispatcher + HTTPS_PROXY', () => withProxyEnv(() => {
+    const dispatcher = new HttpClient('setup-sqlserver', [], { keepAlive: true }).getAgentDispatcher(url);
+    return dispatcher ? viaFetch(url, { dispatcher }) : Promise.reject(new Error('no dispatcher'));
+})]);
+probes.push(['2022', 'native fetch + http-client getAgentDispatcher + NO_PROXY=www.microsoft.com', () => withProxyEnv(() => {
+    process.env.NO_PROXY = 'www.microsoft.com';
+    const dispatcher = new HttpClient('setup-sqlserver', [], { keepAlive: true }).getAgentDispatcher(url);
+    return viaFetch(url, dispatcher ? { dispatcher } : {});
+})]);
 probes.push(['2022', 'http-client (default user agent) + HTTPS_PROXY', () => withProxyEnv(() => viaHttpClient(url))]);
 
 const rows = [];
